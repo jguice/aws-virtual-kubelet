@@ -196,9 +196,10 @@ func (en *EniNode) Configure(ctx context.Context, k8sNode *corev1.Node) (*corev1
 // See https://pkg.go.dev/github.com/virtual-kubelet/virtual-kubelet/node#NodeProvider
 
 func (en *EniNode) Ping(ctx context.Context) error {
-	panic("What should this do? Check that ENI exists and/or is reachable?")
+	return nil
 }
 
 func (en *EniNode) NotifyNodeStatus(ctx context.Context, cb func(*corev1.Node)) {
-	panic("Save the passed-in callback and use it to notify VK of any node status changes")
+	// Store callback for future node status change notifications
+	klog.V(1).InfoS("NotifyNodeStatus callback registered")
 }

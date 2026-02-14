@@ -1,0 +1,63 @@
+run:
+  timeout: 5m
+  modules-download-mode: vendor
+  go: "1.21"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosimple
+    - gocritic
+    - misspell
+    - prealloc
+    - exportloopref
+    - bodyclose
+    - noctx
+  disable:
+    - deadcode      # deprecated
+    - structcheck   # deprecated
+    - varcheck      # deprecated
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment  # too noisy for now
+      - shadow          # too noisy for now
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - performance
+    disabled-checks:
+      - hugeParam  # too noisy with k8s types
+  misspell:
+    locale: US
+  errcheck:
+    exclude-functions:
+      - (k8s.io/klog/v2).Infof
+      - (k8s.io/klog/v2).Errorf
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gocritic
+    # Exclude generated files
+    - path: proto/
+      linters:
+        - govet
+        - errcheck
+        - gocritic
+    - path: mocks/
+      linters:
+        - govet
+        - errcheck
+        - gocritic
+  max-issues-per-linter: 50
+  max-same-issues: 10

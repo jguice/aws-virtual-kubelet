@@ -102,7 +102,7 @@ func (wpm *WarmPoolManager) fillAndMaintain() {
 				select {
 				case <-ticker.C:
 					for _, wpConfig := range wpm.config {
-						klog.Infof("Checking Warm Pool depth for config [?]")
+						klog.Infof("Checking Warm Pool depth for config %+v", wpConfig)
 						wpm.CheckWarmPoolDepth(context.TODO(), wpConfig)
 					}
 				}
@@ -115,7 +115,7 @@ func (wpm *WarmPoolManager) fillAndMaintain() {
 				select {
 				case <-refreshStateTicker.C:
 					for range wpm.config {
-						klog.Infof("Refreshing Warm Pool status from EC2 tags for config [?]")
+						klog.Infof("Refreshing Warm Pool status from EC2 tags")
 						wpm.RefreshWarmPoolFromEC2(context.TODO())
 					}
 				}
@@ -136,7 +136,8 @@ func (wpm *WarmPoolManager) InitialWarmPoolCreation() {
 		for j := existingEC2; j < config.DesiredCount; j++ {
 			err := wpm.createWarmEC2(context.TODO(), config)
 			if err != nil {
-				panic("This createWarmEC2 error wasn't originally handled...determine what to do here")
+				klog.ErrorS(err, "Failed to create warm pool EC2 instance during initial creation, skipping")
+				continue
 			}
 		}
 	}
@@ -464,5 +465,8 @@ func popKey(state map[string]Ec2Info) (key string) {
 	for k := range state {
 		keys = append(keys, k)
 	}
-	return keys[0]
+	if len(keys) == 1 {
+		return keys[0]
+	}
+	return keys[rand.Intn(len(keys))] //nolint:gosec
 }

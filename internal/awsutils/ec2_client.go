@@ -36,7 +36,7 @@ func NewEc2Client() (*Client, error) {
 	// https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/retries-timeouts/
 	vkcfg := vkconfig.Config()
 	httpClient := http.NewBuildableClient().WithTimeout(time.Second * time.Duration(vkcfg.AWSClientTimeoutSeconds)).WithDialerOptions(func(d *net.Dialer) {
-		d.KeepAlive = -1
+		d.KeepAlive = 30 * time.Second
 		d.Timeout = time.Second * time.Duration(vkcfg.AWSClientDialerTimeoutSeconds)
 	})
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithHTTPClient(httpClient))

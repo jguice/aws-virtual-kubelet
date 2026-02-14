@@ -364,7 +364,7 @@ func (m *Monitor) startCheckLoop(ctx context.Context, wg *sync.WaitGroup, cfg co
 
 			klog.InfoS("Sleeping until next Check Interval", "pod", klog.KObj(m.Resource.(*corev1.Pod)),
 				"interval (seconds)", cfg.HealthConfig.HealthCheckIntervalSeconds)
-			time.Sleep(time.Duration(cfg.HealthConfig.HealthCheckIntervalSeconds))
+			time.Sleep(time.Duration(cfg.HealthConfig.HealthCheckIntervalSeconds) * time.Second)
 		}
 	}()
 }

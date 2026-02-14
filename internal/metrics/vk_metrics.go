@@ -77,7 +77,7 @@ var (
 
 var (
 	EC2Terminated = promauto.NewCounter(prometheus.CounterOpts{
-		Name: "vkec2_ec2_ec2_terminated_total",
+		Name: "vkec2_ec2_terminated_total",
 		Help: "The total number of EC2 instances terminated using delete pod function",
 	})
 )
@@ -167,7 +167,7 @@ var (
 var (
 	HealthCheckGRPCError = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "vkec2_check_pod_health_grpc_errors_total",
-		Help: "The total number of errors during check pod health grpc fun",
+		Help: "The total number of errors during check pod health grpc function",
 	})
 )
 
@@ -188,7 +188,7 @@ var (
 var (
 	GetAgentIdentityErrors = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "vkec2_get_agent_identity_grpc_errors_total",
-		Help: "The total number of grpc errors during get agent idenity",
+		Help: "The total number of grpc errors during get agent identity",
 	})
 )
 
@@ -230,7 +230,7 @@ var (
 var (
 	SecretCreated = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "vkec2_create_secret_from_k8s_total",
-		Help: "The total number of a secret is created",
+		Help: "The total number of secrets created",
 	})
 )
 

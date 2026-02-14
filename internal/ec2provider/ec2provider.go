@@ -101,13 +101,15 @@ func NewEc2Provider(ctx context.Context, cfg provider.InitConfig, extCfg config.
 
 	p.warmPool, err = NewWarmPool(ctx, &p)
 	if err != nil {
-		panic("handle warm pool instantiation error")
+		klog.ErrorS(err, "Failed to create warm pool manager")
+		return nil, fmt.Errorf("warm pool instantiation failed: %w", err)
 	}
 	p.warmPool.fillAndMaintain()
 
 	p.computeManager, err = NewComputeManager(ctx)
 	if err != nil {
-		panic("handle compute manager instantiation error")
+		klog.ErrorS(err, "Failed to create compute manager")
+		return nil, fmt.Errorf("compute manager instantiation failed: %w", err)
 	}
 
 	p.defaultHandler = health.NewCheckHandler()

@@ -3,7 +3,7 @@ name: Coverage
 on:
   pull_request:
 env:
-  GO_VERSION_CONSTRAINT: '^1.17.2'
+  GO_VERSION_CONSTRAINT: '^1.21'
   GOPPROXY: direct  # simulate local / restricted environment by avoiding proxy
   REPO_URL: ${{ github.event.repository.html_url }}
   STATUS_URL: ${{ github.event.pull_request.statuses_url }}
@@ -12,8 +12,8 @@ jobs:
     name: Test Coverage Checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-go@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
         with:
           go-version: ${{ env.GO_VERSION_CONSTRAINT }}
       - name: Vendor mods
@@ -27,7 +27,7 @@ jobs:
       - name: Run tests with race condition checking and test coverage output
         run: go test -race -coverpkg=${{ env.PKGS_TO_TEST }} -coverprofile=coverage.out -covermode=atomic  ./...
       - name: Save test coverage data as build artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: Test Coverage Report
           path: coverage.out

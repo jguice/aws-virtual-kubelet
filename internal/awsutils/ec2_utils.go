@@ -340,35 +340,3 @@ func GetPrivateIP(instanceID string) (privateIp string, err error) {
 	klog.Infof("found results : instanceStatus is : %v , privateIp is : %v, for the given instanceId : %v", state, privateIpOut, instanceID)
 	return privateIpOut, nil
 }
-
-//UpdateInstanceProfile updates Pod EC2 IAM Association based on input name
-//func (p *EC2Provider) UpdateInstanceProfile(ctx context.Context, instanceID string, instanceProfile string) (err error) {
-//	klog.Infof("Updating Instance Profile for %s to %s", instanceID, instanceProfile)
-//	//https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeIamInstanceProfileAssociations.html
-//	// First, get association from above
-//	input := ec2.DescribeIamInstanceProfileAssociationsInput{
-//		Filters: []types.Filter{{
-//			Name:   aws.String("instance-id"),
-//			Values: []string{instanceID},
-//		},
-//			{
-//				Name:   aws.String("state"),
-//				Values: []string{"associated"},
-//			},
-//		},
-//	}
-//	resp, err := p.client.DescribeIamInstanceProfileAssociations(ctx, &input)
-//	//https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_ReplaceIamInstanceProfileAssociation.html
-//	// Then, use above to update association
-//	if err != nil {
-//		klog.Errorf("unable to describe IAM Instance Profile Associations with error %v", err)
-//	}
-//	replaceInput := ec2.ReplaceIamInstanceProfileAssociationInput{
-//		AssociationId:      resp.IamInstanceProfileAssociations[0].AssociationId,
-//		IamInstanceProfile: &types.IamInstanceProfileSpecification{Name: aws.String(instanceProfile)},
-//	}
-//	_, err = p.client.ReplaceIamInstanceProfileAssociation(ctx, &replaceInput)
-//	if err != nil {
-//		klog.Error("unable to replace IAM Instance Profile Associations with error ", err)
-//	}
-//	return err

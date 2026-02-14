@@ -5,7 +5,7 @@
 # available at http://aws.amazon.com/agreement or other written agreement between
 # Customer and either Amazon Web Services, Inc. or Amazon Web Services EMEA SARL or both.
 
-FROM golang:1.16-alpine AS build
+FROM golang:1.21-alpine AS build
 
 RUN addgroup -S vk && adduser -S vk -G vk
 

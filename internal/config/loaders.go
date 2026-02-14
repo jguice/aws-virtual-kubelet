@@ -13,7 +13,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"reflect"
 	"strings"
 
@@ -38,7 +38,7 @@ type DirectLoader struct {
 
 // load the config given a FileLoader
 func (fl *FileLoader) load() error {
-	configFile, err := ioutil.ReadFile(fl.ConfigFilePath)
+	configFile, err := os.ReadFile(fl.ConfigFilePath)
 
 	if err != nil {
 		klog.ErrorS(err, "Error reading Config file", "file", fl.ConfigFilePath)

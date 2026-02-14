@@ -51,17 +51,13 @@ func main() {
 	log.Printf("registering Health server")
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthSvr)
 
-	log.Printf("starting listener...")
+	healthSvr.SetServingStatus("vkvmagent.v0.ApplicationLifecycleServer",
+		grpc_health_v1.HealthCheckResponse_SERVING)
 
+	log.Printf("listening on port %d...", *port)
+
+	// grpcServer.Serve blocks until failure — error means the server stopped
 	if err2 := grpcServer.Serve(lis); err2 != nil {
-		log.Printf("🎉 listener started successfully")
-
-		healthSvr.SetServingStatus("vkvmagent.v0.ApplicationLifecycleServer",
-			grpc_health_v1.HealthCheckResponse_NOT_SERVING)
-
-		log.Printf("%v", healthSvr.statusMap)
-
-		return
+		log.Fatalf("gRPC server failed: %v", err2)
 	}
-
 }
