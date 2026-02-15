@@ -13,6 +13,7 @@ import (
 	"context"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-virtual-kubelet/internal/config"
 	"github.com/aws/aws-virtual-kubelet/internal/k8sutils"
@@ -114,6 +115,14 @@ func main() {
 			podCache.Populate(podList)
 			// update provider so it starts with the cache pre-loaded (before k8s asks us for it)
 			p.PopulateCache(podCache)
+
+			// Recover pods from EC2 tags that K8s may have lost (e.g. bare pods evicted during downtime)
+			if err := p.RecoverAndMerge(ctx); err != nil {
+				log.G(ctx).Warnf("EC2-based pod recovery failed (non-fatal): %v", err)
+			}
+
+			// Start background reconciliation to detect orphaned EC2 instances (every 10 minutes)
+			go p.ReconciliationLoop(ctx, 10*time.Minute)
 
 			// warn users if we have overridden a custom node name provided via CLI
 			if o.NodeName != "" {

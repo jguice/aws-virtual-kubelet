@@ -19,11 +19,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/aws-virtual-kubelet/internal/awsutils"
 	"github.com/aws/aws-virtual-kubelet/internal/vkvmaclient"
 
 	"github.com/aws/aws-virtual-kubelet/internal/health"
 
 	"github.com/aws/aws-virtual-kubelet/internal/resilience"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -180,6 +185,11 @@ func (p *Ec2Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 
 	pod.Status.PodIP = privateIP
 	pod.Status.HostIP = privateIP
+
+	// Tag instance with VK node name for recovery (best-effort, don't fail the pod)
+	if err := p.tagInstanceWithNodeName(ctx, instanceID); err != nil {
+		klog.Warningf("Failed to tag instance %s with node name: %v", instanceID, err)
+	}
 
 	// launch application
 	// NOTE LaunchApplicationResponse is currently empty (so we discard it)
@@ -533,6 +543,21 @@ func (p *Ec2Provider) PopulateCache(cache *PodCache) {
 	}
 
 	p.pods = cache
+}
+
+// tagInstanceWithNodeName adds the VK node name tag to an EC2 instance for recovery.
+func (p *Ec2Provider) tagInstanceWithNodeName(ctx context.Context, instanceID string) error {
+	ec2Client, err := awsutils.NewEc2Client()
+	if err != nil {
+		return fmt.Errorf("failed to create EC2 client: %w", err)
+	}
+	_, err = ec2Client.CreateTags(ctx, &ec2.CreateTagsInput{
+		Resources: []string{instanceID},
+		Tags: []types.Tag{
+			{Key: aws.String(awsutils.TagKeyNodeName), Value: aws.String(p.NodeName)},
+		},
+	})
+	return err
 }
 
 func (p *Ec2Provider) statusLoop() {

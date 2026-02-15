@@ -22,22 +22,22 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	vkconfig "github.com/aws/aws-virtual-kubelet/internal/config"
 	"github.com/aws/aws-virtual-kubelet/internal/metrics"
 	util "github.com/aws/aws-virtual-kubelet/internal/utils"
 	corev1 "k8s.io/api/core/v1"
 )
 
+// EC2 tag keys used by VK for pod persistence and recovery.
+const (
+	TagKeyPodUID       = "aws-virtual-kubelet/PodUID"
+	TagKeyPodName      = "aws-virtual-kubelet/PodName"
+	TagKeyPodNamespace = "aws-virtual-kubelet/PodNamespace"
+	TagKeyNodeName     = "aws-virtual-kubelet/NodeName"
+	TagKeyClusterName  = "aws-virtual-kubelet/ClusterName"
+)
+
 // Create Network Interface implementation
-// Inputs:
-//     tag_value is the value of the Name tag for the Network Interface
-//     subnet_id is the id of Subnet where the Network Interface is created
-//     eni_description is description of the Network Interface created
-// 	   api is the backend service API
-// Output:
-//     dns is private DNS address of the Network Interface created
-//	   ebi_id is the ID of the Network Interface created
-//     If success, a nil error.
-//     Otherwise, error.
 
 func CreateNetworkInterface(tagValue string, subnetId string, ec2Client EC2API) (privateIp string,
 	eniId string, err error) {
@@ -187,24 +187,26 @@ func CreateEC2(ctx context.Context, pod *corev1.Pod, userData string, presignBuc
 			return "", fmt.Errorf("invalid tags annotation JSON: %w", err)
 		}
 	}
-	var tagsInput []types.TagSpecification = []types.TagSpecification{{
-		ResourceType: "instance",
-		Tags:         []types.Tag{},
-	}}
+	// Build VK pod-tracking tags (used for pod persistence / recovery on restart)
+	cfg := vkconfig.Config()
 	var tags []types.Tag
+	tags = append(tags, types.Tag{Key: aws.String(TagKeyPodUID), Value: aws.String(string(pod.UID))})
+	tags = append(tags, types.Tag{Key: aws.String(TagKeyPodName), Value: aws.String(pod.Name)})
+	tags = append(tags, types.Tag{Key: aws.String(TagKeyPodNamespace), Value: aws.String(pod.Namespace)})
+	tags = append(tags, types.Tag{Key: aws.String(TagKeyClusterName), Value: aws.String(cfg.ClusterName)})
 
-	// Loop through tags to unwrangle and assign to []types.TagSpecification
+	// Append user-specified tags from annotation
 	for key, value := range annotationTags {
-		// Append each individual tag to the Tag List
 		tags = append(tags, types.Tag{
 			Key:   aws.String(strings.Trim(key, " ")),
 			Value: aws.String(strings.Trim(value, " ")),
 		})
 	}
-	tagsInput[0].Tags = tags
-	if len(tags) == 0 {
-		tagsInput = nil
-	}
+
+	var tagsInput []types.TagSpecification = []types.TagSpecification{{
+		ResourceType: "instance",
+		Tags:         tags,
+	}}
 
 	// Split security group into array of []string
 	securityGroups := util.TrimmedStringSplit(pod.Annotations["compute.amazonaws.com/security-groups"], ",")
