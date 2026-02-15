@@ -23,6 +23,8 @@ import (
 
 	"github.com/aws/aws-virtual-kubelet/internal/health"
 
+	"github.com/aws/aws-virtual-kubelet/internal/resilience"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-virtual-kubelet/internal/config"
@@ -67,6 +69,8 @@ type Ec2Provider struct {
 	podMonitor         *health.PodMonitor
 	defaultHandler     *health.CheckHandler
 	warmPool           *WarmPoolManager
+	launchBreaker      *resilience.CircuitBreaker
+	grpcRetryConfig    resilience.RetryConfig
 }
 
 func NewEc2Provider(ctx context.Context, cfg provider.InitConfig, extCfg config.ExtendedConfig) (*Ec2Provider, error) {
@@ -113,6 +117,19 @@ func NewEc2Provider(ctx context.Context, cfg provider.InitConfig, extCfg config.
 	}
 
 	p.defaultHandler = health.NewCheckHandler()
+
+	p.launchBreaker = resilience.NewCircuitBreaker("launch-application", resilience.CircuitBreakerConfig{
+		FailureThreshold:    5,
+		ResetTimeout:        2 * time.Minute,
+		HalfOpenMaxAttempts: 1,
+	})
+	p.grpcRetryConfig = resilience.RetryConfig{
+		MaxAttempts: 3,
+		BaseDelay:   2 * time.Second,
+		MaxDelay:    30 * time.Second,
+		Multiplier:  2.0,
+		Jitter:      0.3,
+	}
 
 	// start metrics endpoint
 	go metrics.ExposeMetrics()
@@ -351,8 +368,14 @@ func (p *Ec2Provider) launchApplication(
 		return nil, err
 	}
 
-	launchAppResp, err = appClient.LaunchApplication(ctx, &vkvmagent_v0.LaunchApplicationRequest{
-		Pod: pod,
+	err = p.launchBreaker.Execute(ctx, func() error {
+		return resilience.Do(ctx, p.grpcRetryConfig, "LaunchApplication", func() error {
+			var launchErr error
+			launchAppResp, launchErr = appClient.LaunchApplication(ctx, &vkvmagent_v0.LaunchApplicationRequest{
+				Pod: pod,
+			})
+			return launchErr
+		})
 	})
 	if err != nil {
 		klog.ErrorS(err, "Error Launching Application for pod", "pod", klog.KObj(pod))
@@ -452,7 +475,11 @@ func (p *Ec2Provider) terminateApp(ctx context.Context, metaPod *MetaPod) error 
 		return err
 	}
 
-	termAppResp, err = appClient.TerminateApplication(ctx, &vkvmagent_v0.TerminateApplicationRequest{})
+	err = resilience.Do(ctx, p.grpcRetryConfig, "TerminateApplication", func() error {
+		var termErr error
+		termAppResp, termErr = appClient.TerminateApplication(ctx, &vkvmagent_v0.TerminateApplicationRequest{})
+		return termErr
+	})
 	if err != nil {
 		klog.ErrorS(err, "Could not Terminate Application", "pod", klog.KObj(metaPod.pod))
 		return err
