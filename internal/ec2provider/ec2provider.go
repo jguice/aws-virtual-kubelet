@@ -153,6 +153,8 @@ func NewEc2Provider(ctx context.Context, cfg provider.InitConfig, extCfg config.
 // See https://pkg.go.dev/github.com/virtual-kubelet/virtual-kubelet/node#PodLifecycleHandler
 
 func (p *Ec2Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
+	start := time.Now()
+	defer func() { metrics.CreatePodDuration.Observe(time.Since(start).Seconds()) }()
 	klog.Infof("Received CreatePod request for pod %v(%v)", pod.Name, pod.Namespace)
 
 	// Validate pod annotations before proceeding
@@ -216,8 +218,9 @@ func (p *Ec2Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	// notify k8s with pod status update
 	p.podNotifier(pod)
 
-	// increment metric
+	// increment metrics
 	metrics.PodsLaunched.Inc()
+	metrics.ActivePods.Inc()
 
 	return nil
 }
@@ -239,6 +242,8 @@ func (p *Ec2Provider) UpdatePod(ctx context.Context, pod *corev1.Pod) error {
 }
 
 func (p *Ec2Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
+	start := time.Now()
+	defer func() { metrics.DeletePodDuration.Observe(time.Since(start).Seconds()) }()
 	klog.InfoS("Received DeletePod request", "pod", klog.KObj(pod))
 
 	podKey := utils.GetPodCacheKey(pod.Namespace, pod.Name)
@@ -289,6 +294,9 @@ func (p *Ec2Provider) DeletePod(ctx context.Context, pod *corev1.Pod) error {
 
 	// notify k8s
 	p.notifyPodDelete(pod)
+
+	metrics.PodsDeleted.Inc()
+	metrics.ActivePods.Dec()
 
 	klog.InfoS("Pod deleted", "pod", klog.KObj(metaPod.pod))
 

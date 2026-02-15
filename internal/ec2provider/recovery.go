@@ -10,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-virtual-kubelet/internal/awsutils"
+	"github.com/aws/aws-virtual-kubelet/internal/metrics"
 	"github.com/aws/aws-virtual-kubelet/internal/config"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -247,23 +248,29 @@ func (p *Ec2Provider) ReconciliationLoop(ctx context.Context, interval time.Dura
 
 // reconcile compares EC2 state with in-memory pod cache and reports discrepancies.
 func (p *Ec2Provider) reconcile(ctx context.Context) {
+	metrics.ReconciliationRuns.Inc()
+
 	ec2Client, err := awsutils.NewEc2Client()
 	if err != nil {
 		klog.Errorf("Reconciliation: failed to create EC2 client: %v", err)
+		metrics.ReconciliationErrors.Inc()
 		return
 	}
 
 	recovery := NewPodRecovery(ec2Client, p.NodeName)
 
-	// Build set of active pod UIDs
+	// Build set of active pod UIDs and update active pods gauge
 	activePodUIDs := make(map[k8stypes.UID]bool)
-	for _, metaPod := range p.pods.GetList() {
+	podList := p.pods.GetList()
+	for _, metaPod := range podList {
 		activePodUIDs[metaPod.pod.UID] = true
 	}
+	metrics.ActivePods.Set(float64(len(podList)))
 
 	orphaned, err := recovery.FindOrphanedInstances(ctx, activePodUIDs)
 	if err != nil {
 		klog.Errorf("Reconciliation: failed to find orphaned instances: %v", err)
+		metrics.ReconciliationErrors.Inc()
 		return
 	}
 
@@ -271,6 +278,7 @@ func (p *Ec2Provider) reconcile(ctx context.Context) {
 		klog.Warningf("Reconciliation: found %d orphaned EC2 instances: %v", len(orphaned), orphaned)
 		klog.Warning("Reconciliation: orphaned instances are NOT auto-terminated. " +
 			"Manual cleanup required or enable auto-cleanup in config.")
+		metrics.OrphanedInstancesDetected.Add(float64(len(orphaned)))
 	} else {
 		klog.V(1).Info("Reconciliation: no orphaned instances detected")
 	}
@@ -317,6 +325,8 @@ func (p *Ec2Provider) RecoverAndMerge(ctx context.Context) error {
 
 		metaPod := NewMetaPod(rp.Pod, nil, p.podNotifier)
 		p.pods.Set(podKey, metaPod)
+		metrics.PodsRecovered.Inc()
+		metrics.ActivePods.Inc()
 		klog.Infof("Added recovered pod %s/%s to cache (instance=%s)",
 			rp.Pod.Namespace, rp.Pod.Name, rp.InstanceID)
 	}

@@ -353,7 +353,103 @@ var (
 	})
 )
 
-// init() registers all the counters
+// --- Histograms for operation latency ---
+
+var latencyBuckets = []float64{0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120, 300}
+
+var (
+	CreatePodDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "vkec2_create_pod_duration_seconds",
+		Help:    "Time taken to create a pod (end-to-end including EC2 launch and app deploy)",
+		Buckets: latencyBuckets,
+	})
+)
+
+var (
+	DeletePodDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "vkec2_delete_pod_duration_seconds",
+		Help:    "Time taken to delete a pod (including EC2 termination)",
+		Buckets: latencyBuckets,
+	})
+)
+
+var (
+	EC2LaunchDuration = promauto.NewHistogram(prometheus.HistogramOpts{
+		Name:    "vkec2_ec2_launch_duration_seconds",
+		Help:    "Time taken to launch an EC2 instance",
+		Buckets: latencyBuckets,
+	})
+)
+
+var (
+	GRPCCallDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "vkec2_grpc_call_duration_seconds",
+		Help:    "Duration of gRPC calls by method",
+		Buckets: []float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10},
+	}, []string{"method"})
+)
+
+// --- Gauges for current state ---
+
+var (
+	ActivePods = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "vkec2_active_pods",
+		Help: "Current number of active pods managed by this VK instance",
+	})
+)
+
+var (
+	WarmPoolReady = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "vkec2_warmpool_ready_instances",
+		Help: "Current number of warm pool instances in ready state",
+	})
+)
+
+var (
+	WarmPoolProvisioning = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "vkec2_warmpool_provisioning_instances",
+		Help: "Current number of warm pool instances being provisioned",
+	})
+)
+
+var (
+	CircuitBreakerState = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "vkec2_circuit_breaker_state",
+		Help: "Current circuit breaker state (0=closed, 1=open, 2=half-open)",
+	}, []string{"name"})
+)
+
+// --- Recovery and reconciliation metrics ---
+
+var (
+	PodsRecovered = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "vkec2_pods_recovered_total",
+		Help: "Total number of pods recovered from EC2 tags on startup",
+	})
+)
+
+var (
+	OrphanedInstancesDetected = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "vkec2_orphaned_instances_detected_total",
+		Help: "Total number of orphaned EC2 instances detected by reconciliation",
+	})
+)
+
+var (
+	ReconciliationRuns = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "vkec2_reconciliation_runs_total",
+		Help: "Total number of reconciliation loop runs",
+	})
+)
+
+var (
+	ReconciliationErrors = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "vkec2_reconciliation_errors_total",
+		Help: "Total number of reconciliation errors",
+	})
+)
+
+// init() registers all the counters, histograms, and gauges
 func init() {
 	// Register custom metrics with the global prometheus registry
 	metrics.Registry.MustRegister(PodsLaunched)
@@ -392,6 +488,24 @@ func init() {
 	metrics.Registry.MustRegister(WarmEC2TerminationErrors)
 	metrics.Registry.MustRegister(EC2TagCreationErrors)
 	metrics.Registry.MustRegister(HealthCheckStateUnhealthy)
+
+	// Histograms
+	metrics.Registry.MustRegister(CreatePodDuration)
+	metrics.Registry.MustRegister(DeletePodDuration)
+	metrics.Registry.MustRegister(EC2LaunchDuration)
+	metrics.Registry.MustRegister(GRPCCallDuration)
+
+	// Gauges
+	metrics.Registry.MustRegister(ActivePods)
+	metrics.Registry.MustRegister(WarmPoolReady)
+	metrics.Registry.MustRegister(WarmPoolProvisioning)
+	metrics.Registry.MustRegister(CircuitBreakerState)
+
+	// Recovery
+	metrics.Registry.MustRegister(PodsRecovered)
+	metrics.Registry.MustRegister(OrphanedInstancesDetected)
+	metrics.Registry.MustRegister(ReconciliationRuns)
+	metrics.Registry.MustRegister(ReconciliationErrors)
 }
 
 // GetMetricsData returns all the metrics for testing purposes

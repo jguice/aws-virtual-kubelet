@@ -45,3 +45,116 @@ func TestMetricsCounter(t *testing.T) {
 		})
 	}
 }
+
+func findMetricFamily(families []*io_prometheus_client.MetricFamily, name string) *io_prometheus_client.MetricFamily {
+	for _, f := range families {
+		if f.GetName() == name {
+			return f
+		}
+	}
+	return nil
+}
+
+func TestHistogramMetrics(t *testing.T) {
+	// Record some observations
+	CreatePodDuration.Observe(1.5)
+	CreatePodDuration.Observe(0.5)
+	DeletePodDuration.Observe(2.0)
+
+	families := GetMetricsData()
+
+	createPod := findMetricFamily(families, "vkec2_create_pod_duration_seconds")
+	if createPod == nil {
+		t.Fatal("vkec2_create_pod_duration_seconds metric not found")
+	}
+	hist := createPod.Metric[0].Histogram
+	if hist == nil {
+		t.Fatal("expected histogram data")
+	}
+	if hist.GetSampleCount() != 2 {
+		t.Errorf("expected 2 samples, got %d", hist.GetSampleCount())
+	}
+
+	deletePod := findMetricFamily(families, "vkec2_delete_pod_duration_seconds")
+	if deletePod == nil {
+		t.Fatal("vkec2_delete_pod_duration_seconds metric not found")
+	}
+}
+
+func TestGaugeMetrics(t *testing.T) {
+	// Set gauge values
+	ActivePods.Set(5)
+	WarmPoolReady.Set(3)
+	WarmPoolProvisioning.Set(1)
+
+	families := GetMetricsData()
+
+	active := findMetricFamily(families, "vkec2_active_pods")
+	if active == nil {
+		t.Fatal("vkec2_active_pods metric not found")
+	}
+	if active.Metric[0].Gauge.GetValue() != 5 {
+		t.Errorf("expected ActivePods=5, got %f", active.Metric[0].Gauge.GetValue())
+	}
+
+	ready := findMetricFamily(families, "vkec2_warmpool_ready_instances")
+	if ready == nil {
+		t.Fatal("vkec2_warmpool_ready_instances metric not found")
+	}
+	if ready.Metric[0].Gauge.GetValue() != 3 {
+		t.Errorf("expected WarmPoolReady=3, got %f", ready.Metric[0].Gauge.GetValue())
+	}
+}
+
+func TestGRPCCallDurationHistogramVec(t *testing.T) {
+	GRPCCallDuration.WithLabelValues("LaunchApplication").Observe(0.25)
+	GRPCCallDuration.WithLabelValues("TerminateApplication").Observe(0.5)
+
+	families := GetMetricsData()
+	grpcDuration := findMetricFamily(families, "vkec2_grpc_call_duration_seconds")
+	if grpcDuration == nil {
+		t.Fatal("vkec2_grpc_call_duration_seconds metric not found")
+	}
+	if len(grpcDuration.Metric) < 2 {
+		t.Errorf("expected at least 2 label sets, got %d", len(grpcDuration.Metric))
+	}
+}
+
+func TestRecoveryMetrics(t *testing.T) {
+	PodsRecovered.Inc()
+	PodsRecovered.Inc()
+	OrphanedInstancesDetected.Add(3)
+	ReconciliationRuns.Inc()
+
+	families := GetMetricsData()
+
+	recovered := findMetricFamily(families, "vkec2_pods_recovered_total")
+	if recovered == nil {
+		t.Fatal("vkec2_pods_recovered_total metric not found")
+	}
+
+	orphaned := findMetricFamily(families, "vkec2_orphaned_instances_detected_total")
+	if orphaned == nil {
+		t.Fatal("vkec2_orphaned_instances_detected_total metric not found")
+	}
+
+	reconciliation := findMetricFamily(families, "vkec2_reconciliation_runs_total")
+	if reconciliation == nil {
+		t.Fatal("vkec2_reconciliation_runs_total metric not found")
+	}
+}
+
+func TestCircuitBreakerGaugeVec(t *testing.T) {
+	CircuitBreakerState.WithLabelValues("launch-application").Set(0) // closed
+	CircuitBreakerState.WithLabelValues("launch-application").Set(1) // open
+
+	families := GetMetricsData()
+	cb := findMetricFamily(families, "vkec2_circuit_breaker_state")
+	if cb == nil {
+		t.Fatal("vkec2_circuit_breaker_state metric not found")
+	}
+	// Should have value 1 (last set)
+	if cb.Metric[0].Gauge.GetValue() != 1 {
+		t.Errorf("expected circuit breaker state=1, got %f", cb.Metric[0].Gauge.GetValue())
+	}
+}
