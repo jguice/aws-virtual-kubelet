@@ -150,6 +150,12 @@ func NewEc2Provider(ctx context.Context, cfg provider.InitConfig, extCfg config.
 func (p *Ec2Provider) CreatePod(ctx context.Context, pod *corev1.Pod) error {
 	klog.Infof("Received CreatePod request for pod %v(%v)", pod.Name, pod.Namespace)
 
+	// Validate pod annotations before proceeding
+	if err := ValidatePodAnnotations(pod); err != nil {
+		klog.ErrorS(err, "Pod annotation validation failed", "pod", klog.KObj(pod))
+		return err
+	}
+
 	// create (but don't start) pod monitor
 	podMonitor, err := health.NewPodMonitor(pod, p.defaultHandler)
 	if err != nil {

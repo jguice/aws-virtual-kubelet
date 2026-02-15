@@ -13,6 +13,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -181,7 +182,11 @@ func CreateEC2(ctx context.Context, pod *corev1.Pod, userData string, presignBuc
 
 	annotationValue := pod.Annotations["compute.amazonaws.com/tags"]
 	annotationTags := make(map[string]string)
-	json.Unmarshal([]byte(annotationValue), &annotationTags)
+	if annotationValue != "" {
+		if err := json.Unmarshal([]byte(annotationValue), &annotationTags); err != nil {
+			return "", fmt.Errorf("invalid tags annotation JSON: %w", err)
+		}
+	}
 	var tagsInput []types.TagSpecification = []types.TagSpecification{{
 		ResourceType: "instance",
 		Tags:         []types.Tag{},

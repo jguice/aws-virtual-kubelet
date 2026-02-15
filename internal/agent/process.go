@@ -273,12 +273,12 @@ func (pm *ProcessManager) openLogFiles(pod *corev1.Pod, containerName string) (*
 	stdoutPath := filepath.Join(pm.logDir, prefix+".stdout.log")
 	stderrPath := filepath.Join(pm.logDir, prefix+".stderr.log")
 
-	stdout, err := os.OpenFile(stdoutPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	stdout, err := os.OpenFile(stdoutPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open stdout log: %w", err)
 	}
 
-	stderr, err := os.OpenFile(stderrPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	stderr, err := os.OpenFile(stderrPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0600)
 	if err != nil {
 		stdout.Close()
 		return nil, nil, fmt.Errorf("open stderr log: %w", err)

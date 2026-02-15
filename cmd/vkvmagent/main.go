@@ -41,7 +41,7 @@ func main() {
 	flag.Parse()
 
 	// Ensure log directory exists
-	if err := os.MkdirAll(*logDir, 0755); err != nil {
+	if err := os.MkdirAll(*logDir, 0700); err != nil {
 		log.Fatalf("failed to create log directory %s: %v", *logDir, err)
 	}
 
