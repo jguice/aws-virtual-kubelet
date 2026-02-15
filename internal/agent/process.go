@@ -59,6 +59,9 @@ type ProcessManager struct {
 	stderr     *os.File
 	stdoutPath string
 	stderrPath string
+
+	// done is closed when waitForExit completes
+	done chan struct{}
 }
 
 // NewProcessManager creates a new ProcessManager that writes workload logs to logDir.
@@ -127,6 +130,7 @@ func (pm *ProcessManager) Launch(pod *corev1.Pod) error {
 	pm.startTime = time.Now()
 	pm.exitCode = 0
 	pm.exitErr = nil
+	pm.done = make(chan struct{})
 
 	log.Printf("workload started (pid %d)", cmd.Process.Pid)
 
@@ -156,17 +160,10 @@ func (pm *ProcessManager) Terminate(ctx context.Context) error {
 		return pm.forceKill(pid)
 	}
 
-	// Wait for the process to exit or timeout
-	done := make(chan struct{})
-	go func() {
-		pm.mu.RLock()
-		cmd := pm.cmd
-		pm.mu.RUnlock()
-		if cmd != nil && cmd.Process != nil {
-			cmd.Wait()
-		}
-		close(done)
-	}()
+	// Wait for waitForExit goroutine to detect process exit
+	pm.mu.RLock()
+	done := pm.done
+	pm.mu.RUnlock()
 
 	select {
 	case <-done:
@@ -232,13 +229,12 @@ func (pm *ProcessManager) LogPaths() (stdoutPath, stderrPath string) {
 func (pm *ProcessManager) waitForExit() {
 	pm.mu.RLock()
 	cmd := pm.cmd
+	done := pm.done
 	pm.mu.RUnlock()
 
 	err := cmd.Wait()
 
 	pm.mu.Lock()
-	defer pm.mu.Unlock()
-
 	pm.closeLogFiles()
 
 	if err != nil {
@@ -256,6 +252,9 @@ func (pm *ProcessManager) waitForExit() {
 		pm.state = StateTerminated
 		log.Printf("workload exited successfully")
 	}
+	pm.mu.Unlock()
+
+	close(done)
 }
 
 // forceKill sends SIGKILL to the process group.
