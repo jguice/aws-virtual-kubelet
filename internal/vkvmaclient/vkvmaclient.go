@@ -28,6 +28,8 @@ import (
 
 	health "github.com/aws/aws-virtual-kubelet/proto/grpc/health/v1"
 
+	"github.com/aws/aws-virtual-kubelet/internal/tlsutil"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/backoff"
 	"google.golang.org/grpc/credentials/insecure"
@@ -147,8 +149,25 @@ func (v *VkvmaClient) Connect(ctx context.Context) (*grpc.ClientConn, error) {
 		//PermitWithoutStream: true,
 	}
 
+	// Use mTLS if configured, otherwise fall back to insecure (plaintext)
+	tlsCfg := tlsutil.Config{
+		Enabled:    v.config.TLS.Enabled,
+		CACertFile: v.config.TLS.CACertFile,
+		CertFile:   v.config.TLS.CertFile,
+		KeyFile:    v.config.TLS.KeyFile,
+	}
+	transportCreds, err := tlsutil.ClientCredentials(tlsCfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load TLS client credentials: %w", err)
+	}
+	if transportCreds == nil {
+		transportCreds = insecure.NewCredentials()
+	} else {
+		klog.Infof("mTLS enabled for connection to %v", dialAddr)
+	}
+
 	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(transportCreds),
 		grpc.WithBlock(),
 		grpc.WithConnectParams(connectParams),
 	}

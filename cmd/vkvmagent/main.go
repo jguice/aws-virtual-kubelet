@@ -25,6 +25,7 @@ import (
 	"syscall"
 
 	"github.com/aws/aws-virtual-kubelet/internal/agent"
+	"github.com/aws/aws-virtual-kubelet/internal/tlsutil"
 
 	grpc_health_v1 "github.com/aws/aws-virtual-kubelet/proto/grpc/health/v1"
 	vkvmagent "github.com/aws/aws-virtual-kubelet/proto/vkvmagent/v0"
@@ -33,8 +34,12 @@ import (
 )
 
 var (
-	port   = flag.Int("port", 8200, "gRPC server port")
-	logDir = flag.String("log-dir", "/var/log/vkvmagent", "directory for workload log files")
+	port       = flag.Int("port", 8200, "gRPC server port")
+	logDir     = flag.String("log-dir", "/var/log/vkvmagent", "directory for workload log files")
+	tlsEnabled = flag.Bool("tls", false, "enable mTLS for gRPC server")
+	caCert     = flag.String("ca-cert", "", "path to CA certificate for mTLS")
+	certFile   = flag.String("cert", "", "path to server certificate (PEM)")
+	keyFile    = flag.String("key", "", "path to server private key (PEM)")
 )
 
 func main() {
@@ -58,7 +63,23 @@ func main() {
 		log.Fatalf("failed to listen on port %d: %v", *port, err)
 	}
 
-	grpcServer := grpc.NewServer()
+	var serverOpts []grpc.ServerOption
+	if *tlsEnabled {
+		tlsCfg := tlsutil.Config{
+			Enabled:    true,
+			CACertFile: *caCert,
+			CertFile:   *certFile,
+			KeyFile:    *keyFile,
+		}
+		creds, err := tlsutil.ServerCredentials(tlsCfg)
+		if err != nil {
+			log.Fatalf("failed to load TLS credentials: %v", err)
+		}
+		serverOpts = append(serverOpts, grpc.Creds(creds))
+		log.Printf("mTLS enabled (ca=%s cert=%s)", *caCert, *certFile)
+	}
+
+	grpcServer := grpc.NewServer(serverOpts...)
 
 	vkvmagent.RegisterApplicationLifecycleServer(grpcServer, lifecycleSvc)
 	grpc_health_v1.RegisterHealthServer(grpcServer, healthSvc)

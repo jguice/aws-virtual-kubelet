@@ -128,6 +128,20 @@ type VkvmaConfig struct {
 		// closed.
 		TimeoutSeconds int `default:"120"`
 	}
+	// TLS/mTLS configuration for securing gRPC communication
+	TLS TLSConfig
+}
+
+// TLSConfig holds mutual TLS settings for the provider ↔ agent gRPC channel.
+type TLSConfig struct {
+	// Enable mTLS for gRPC communication (default: false for backwards compatibility)
+	Enabled bool `default:"false"`
+	// Path to the CA certificate file used to verify the peer
+	CACertFile string
+	// Path to the client/server certificate file (PEM)
+	CertFile string
+	// Path to the client/server private key file (PEM)
+	KeyFile string
 }
 
 // package-level config "singleton" for global static access (provided via Config function below)
