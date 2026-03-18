@@ -1,0 +1,37 @@
+# Example pod targeting a Mac Metal (Apple Silicon) EC2 instance.
+#
+# This demonstrates the primary commercial use case: managing macOS workloads
+# (CI/CD builds, iOS testing, Xcode compilation) on mac2-m2.metal instances
+# through Kubernetes.
+#
+# The agent runs the demo app as a native macOS process — no containers needed.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-app-mac
+  namespace: default
+  annotations:
+    compute.amazonaws.com/tags: '{"Name": "VK Mac Metal Demo", "Team": "mobile-ci"}'
+    compute.amazonaws.com/security-groups: sg-0123456789abcdef0
+    compute.amazonaws.com/instance-profile: virtual-kubelet-mac-profile
+    compute.amazonaws.com/image-id: ami-0123456789abcdef0
+    compute.amazonaws.com/subnet-id: subnet-0123456789abcdef0
+    # Mac Metal instance types — dedicated Apple Silicon hardware
+    compute.amazonaws.com/instance-type: mac2-m2.metal
+spec:
+  containers:
+    - name: demo-http-server
+      image: aws-virtual-kubelet/demo-app:latest
+      command:
+        - /opt/vkvma/demo-app
+      env:
+        - name: APP_PORT
+          value: "8080"
+        - name: APP_NAME
+          value: "mac-metal-demo"
+  nodeSelector:
+    type: virtual-kubelet
+  tolerations:
+    - key: "virtual-kubelet.io/provider"
+      operator: Exists
+      effect: NoSchedule

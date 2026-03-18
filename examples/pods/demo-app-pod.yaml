@@ -1,0 +1,47 @@
+# Example pod that deploys the demo HTTP server via the production VKVMA agent.
+#
+# The agent maps container specs to native processes on the EC2 instance:
+#   container.command  → process binary path
+#   container.args     → process arguments
+#   container.env      → environment variables
+#
+# Prerequisites:
+#   1. Build the demo app:  go build -o /opt/vkvma/demo-app ./examples/demo-app/
+#   2. Build the agent:     go build -o /opt/vkvma/vkvmagent ./cmd/vkvmagent/
+#   3. Start the agent on the EC2 instance:  /opt/vkvma/vkvmagent --port 8200
+#
+# The agent will execute: /opt/vkvma/demo-app (as a native process, not a container)
+apiVersion: v1
+kind: Pod
+metadata:
+  name: demo-app
+  namespace: default
+  annotations:
+    # EC2 instance configuration
+    compute.amazonaws.com/tags: '{"Name": "VK Demo App Instance"}'
+    compute.amazonaws.com/security-groups: sg-0123456789abcdef0
+    compute.amazonaws.com/instance-profile: virtual-kubelet-instance-profile
+    compute.amazonaws.com/image-id: ami-0123456789abcdef0
+    compute.amazonaws.com/key-pair: "my-keypair"
+    compute.amazonaws.com/subnet-id: subnet-0123456789abcdef0
+    compute.amazonaws.com/instance-type: m6g.medium
+spec:
+  containers:
+    - name: demo-http-server
+      # The "image" field is informational — the agent runs a native binary, not a container image
+      image: aws-virtual-kubelet/demo-app:latest
+      # command → the binary path on the EC2 instance
+      command:
+        - /opt/vkvma/demo-app
+      # Environment variables are passed to the process
+      env:
+        - name: APP_PORT
+          value: "8080"
+        - name: APP_NAME
+          value: "hello-vk"
+  nodeSelector:
+    type: virtual-kubelet
+  tolerations:
+    - key: "virtual-kubelet.io/provider"
+      operator: Exists
+      effect: NoSchedule
