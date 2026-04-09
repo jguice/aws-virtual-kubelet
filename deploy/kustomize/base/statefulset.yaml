@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: virtual-kubelet
+  namespace: virtual-kubelet
+  labels:
+    app: virtual-kubelet
+spec:
+  serviceName: virtual-kubelet
+  replicas: 1
+  selector:
+    matchLabels:
+      app: virtual-kubelet
+  template:
+    metadata:
+      labels:
+        app: virtual-kubelet
+    spec:
+      serviceAccountName: virtual-kubelet-sa
+      containers:
+        - name: virtual-kubelet
+          image: aws-virtual-kubelet:latest
+          imagePullPolicy: Always
+          args:
+            - --provider
+            - ec2
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - name: metrics
+              containerPort: 10256
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: virtual-kubelet-config

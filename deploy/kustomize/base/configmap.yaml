@@ -1,0 +1,49 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: virtual-kubelet-config
+  namespace: virtual-kubelet
+data:
+  config.json: |
+    {
+      "Region": "us-west-2",
+      "ClusterName": "aws-virtual-kubelet",
+      "ManagementSubnet": "REPLACE_ME",
+      "AWSClientTimeoutSeconds": 30,
+      "AWSClientDialerTimeoutSeconds": 5,
+      "StatusIntervalSeconds": 15,
+      "VMConfig": {
+        "DefaultAMI": "",
+        "InitData": ""
+      },
+      "BootstrapAgent": {
+        "S3Bucket": "",
+        "S3Key": "",
+        "GRPCPort": 8200,
+        "InitData": ""
+      },
+      "HealthConfig": {
+        "UnhealthyThresholdCount": 5,
+        "HealthCheckIntervalSeconds": 60,
+        "StreamRetryIntervalSeconds": 10
+      },
+      "VKVMAgentConnectionConfig": {
+        "Port": 8200,
+        "TimeoutSeconds": 300,
+        "MinConnectTimeoutSeconds": 60,
+        "Backoff": {
+          "BaseDelaySeconds": 1,
+          "Multiplier": 1.5,
+          "Jitter": 0.5,
+          "MaxDelaySeconds": 120
+        },
+        "KeepaliveEnabled": false,
+        "Keepalive": {
+          "TimeSeconds": 60,
+          "TimeoutSeconds": 120
+        },
+        "TLS": {
+          "Enabled": false
+        }
+      }
+    }

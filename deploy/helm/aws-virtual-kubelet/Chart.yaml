@@ -1,0 +1,13 @@
+apiVersion: v2
+name: aws-virtual-kubelet
+description: AWS Virtual Kubelet — manage EC2 instances (including Mac Metal) as Kubernetes pods
+type: application
+version: 0.6.0
+appVersion: "0.6.0"
+keywords:
+  - virtual-kubelet
+  - aws
+  - ec2
+  - mac-metal
+  - apple-silicon
+home: https://github.com/awslabs/aws-virtual-kubelet

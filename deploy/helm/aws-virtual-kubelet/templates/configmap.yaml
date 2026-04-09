@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "aws-virtual-kubelet.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "aws-virtual-kubelet.labels" . | nindent 4 }}
+data:
+  config.json: |
+    {
+      "Region": {{ .Values.provider.region | quote }},
+      "ClusterName": {{ .Values.provider.clusterName | quote }},
+      "ManagementSubnet": {{ .Values.provider.managementSubnet | quote }},
+      "AWSClientTimeoutSeconds": {{ .Values.provider.awsClientTimeoutSeconds }},
+      "AWSClientDialerTimeoutSeconds": {{ .Values.provider.awsClientDialerTimeoutSeconds }},
+      "StatusIntervalSeconds": {{ .Values.provider.statusIntervalSeconds }},
+      "VMConfig": {
+        "DefaultAMI": {{ .Values.provider.vmConfig.defaultAMI | quote }},
+        "InitData": {{ .Values.provider.vmConfig.initData | quote }}
+      },
+      "BootstrapAgent": {
+        "S3Bucket": {{ .Values.provider.bootstrapAgent.s3Bucket | quote }},
+        "S3Key": {{ .Values.provider.bootstrapAgent.s3Key | quote }},
+        "GRPCPort": {{ .Values.provider.bootstrapAgent.grpcPort }},
+        "InitData": {{ .Values.provider.bootstrapAgent.initData | quote }}
+      },
+      "HealthConfig": {
+        "UnhealthyThresholdCount": {{ .Values.provider.healthConfig.unhealthyThresholdCount }},
+        "HealthCheckIntervalSeconds": {{ .Values.provider.healthConfig.healthCheckIntervalSeconds }},
+        "StreamRetryIntervalSeconds": {{ .Values.provider.healthConfig.streamRetryIntervalSeconds }}
+      },
+      "VKVMAgentConnectionConfig": {
+        "Port": {{ .Values.provider.agentConnection.port }},
+        "TimeoutSeconds": {{ .Values.provider.agentConnection.timeoutSeconds }},
+        "MinConnectTimeoutSeconds": {{ .Values.provider.agentConnection.minConnectTimeoutSeconds }},
+        "Backoff": {
+          "BaseDelaySeconds": {{ .Values.provider.agentConnection.backoff.baseDelaySeconds }},
+          "Multiplier": {{ .Values.provider.agentConnection.backoff.multiplier }},
+          "Jitter": {{ .Values.provider.agentConnection.backoff.jitter }},
+          "MaxDelaySeconds": {{ .Values.provider.agentConnection.backoff.maxDelaySeconds }}
+        },
+        "KeepaliveEnabled": {{ .Values.provider.agentConnection.keepaliveEnabled }},
+        "Keepalive": {
+          "TimeSeconds": {{ .Values.provider.agentConnection.keepalive.timeSeconds }},
+          "TimeoutSeconds": {{ .Values.provider.agentConnection.keepalive.timeoutSeconds }}
+        },
+        "TLS": {
+          "Enabled": {{ .Values.provider.agentConnection.tls.enabled }},
+          "CACertFile": {{ .Values.provider.agentConnection.tls.caCertFile | quote }},
+          "CertFile": {{ .Values.provider.agentConnection.tls.certFile | quote }},
+          "KeyFile": {{ .Values.provider.agentConnection.tls.keyFile | quote }}
+        }
+      }
+      {{- if .Values.provider.warmPool }},
+      "WarmPoolConfig": {{ .Values.provider.warmPool | toJson }}
+      {{- end }}
+    }

@@ -1,0 +1,89 @@
+# Default values for aws-virtual-kubelet
+
+replicaCount: 1
+
+image:
+  repository: "" # e.g. 123456789012.dkr.ecr.us-west-2.amazonaws.com/aws-virtual-kubelet
+  tag: "latest"
+  pullPolicy: Always
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Create the service account (set false if it already exists)
+  create: true
+  name: "virtual-kubelet-sa"
+  annotations: {}
+    # eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/virtual-kubelet-role
+
+rbac:
+  # Create ClusterRole and ClusterRoleBinding for VK
+  create: true
+
+# Provider configuration (rendered into the ConfigMap)
+provider:
+  region: "us-west-2"
+  clusterName: "aws-virtual-kubelet"
+  managementSubnet: "" # REQUIRED: subnet for ENI (node) creation
+  awsClientTimeoutSeconds: 30
+  awsClientDialerTimeoutSeconds: 5
+  statusIntervalSeconds: 15
+
+  vmConfig:
+    defaultAMI: "" # AMI for pod instances (overridable per-pod via annotation)
+    initData: ""   # base64-encoded EC2 user data
+
+  bootstrapAgent:
+    s3Bucket: ""   # S3 bucket containing the vkvmagent binary
+    s3Key: ""      # S3 key for the vkvmagent binary
+    grpcPort: 8200
+    initData: ""
+
+  healthConfig:
+    unhealthyThresholdCount: 5
+    healthCheckIntervalSeconds: 60
+    streamRetryIntervalSeconds: 10
+
+  agentConnection:
+    port: 8200
+    timeoutSeconds: 300
+    minConnectTimeoutSeconds: 60
+    backoff:
+      baseDelaySeconds: 1
+      multiplier: 1.5
+      jitter: 0.5
+      maxDelaySeconds: 120
+    keepaliveEnabled: false
+    keepalive:
+      timeSeconds: 60
+      timeoutSeconds: 120
+    tls:
+      enabled: false
+      caCertFile: ""
+      certFile: ""
+      keyFile: ""
+
+  # Warm pool configuration (optional, leave empty to disable)
+  warmPool: []
+  # - desiredCount: 2
+  #   iamInstanceProfile: "vk-instance-profile"
+  #   securityGroups: ["sg-0123456789abcdef0"]
+  #   keyPair: "my-keypair"
+  #   imageID: "ami-0123456789abcdef0"
+  #   instanceType: "m6g.medium"
+  #   subnets: ["subnet-0123456789abcdef0"]
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

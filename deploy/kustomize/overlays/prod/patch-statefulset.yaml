@@ -1,0 +1,17 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: virtual-kubelet
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: virtual-kubelet
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
